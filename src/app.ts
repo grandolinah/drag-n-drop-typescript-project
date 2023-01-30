@@ -1,18 +1,30 @@
+enum ProjectStatus {
+  Active, Finished
+}
+
+// PROJECT TYPE
+class Project {
+  constructor(public id: string, public title: string, public description: string, public people: number, public status: ProjectStatus) { }
+}
+
+type Listener = (items: Project[]) => void;
+
 // STATE MANAGEMENT
 class ProjectState {
-  private projects: any[] = [];
-  private listeners: any[] = [];
+  private projects: Project[] = [];
+  private listeners: Listener[] = [];
   private static instance: ProjectState;
 
-  private constructor() {}
+  private constructor() { }
 
   addProject(title: string, description: string, numOfPeople: number) {
-    const newProject = {
-      id: Math.random().toString(),
-      title: title,
-      description: description,
-      people: numOfPeople
-    }
+    const newProject = new Project(
+      Math.random().toString(),
+      title,
+      description,
+      numOfPeople,
+      ProjectStatus.Active
+    )
 
     this.projects.push(newProject);
 
@@ -21,7 +33,7 @@ class ProjectState {
     }
   }
 
-  addListener(listenerFn: Function) {
+  addListener(listenerFn: Listener) {
     this.listeners.push(listenerFn);
   }
 
@@ -93,9 +105,9 @@ class ProjectList {
   templateElement: HTMLTemplateElement;
   hostElement: HTMLDivElement;
   element: HTMLElement;
-  assignedProjects: any[];
+  assignedProjects: Project[];
 
-  constructor(private type: 'active' | 'finished' ) {
+  constructor(private type: 'active' | 'finished') {
     this.templateElement = document.getElementById('project-list')! as HTMLTemplateElement;
     this.hostElement = document.getElementById('app')! as HTMLDivElement;
 
@@ -105,8 +117,16 @@ class ProjectList {
     this.element.id = `${this.type}-projects`;
     this.assignedProjects = [];
 
-    projectState.addListener((projects: any[]) => {
-      this.assignedProjects = projects;
+    projectState.addListener((projects: Project[]) => {
+      const relevantProjects = projects.filter(prj => {
+        if (this.type === 'active') {
+          return prj.status === ProjectStatus.Active
+        } else {
+          return prj.status === ProjectStatus.Finished
+        }
+      });
+
+      this.assignedProjects = relevantProjects;
 
       this.renderProjects();
     });
@@ -115,11 +135,12 @@ class ProjectList {
     this.renderContent();
   }
 
-  private renderProjects () {
+  private renderProjects() {
     const listEl = document.getElementById(`${this.type}-projects-list`)! as HTMLUListElement;
+    listEl.innerHTML = '';
 
     for (const prjItem of this.assignedProjects) {
-      const listItem  = document.createElement('li');
+      const listItem = document.createElement('li');
 
       listItem.textContent = prjItem.title;
 
@@ -127,7 +148,7 @@ class ProjectList {
     }
   }
 
-  private renderContent () {
+  private renderContent() {
     const listId = `${this.type}-projects-list`;
 
     this.element.querySelector('ul')!.id = listId;
@@ -199,7 +220,7 @@ class ProjectInput {
     }
   }
 
-  private clearInput  () {
+  private clearInput() {
     this.titleInputElement.value = '';
     this.descriptionInputElement.value = '';
     this.peopleInputElement.value = '';
