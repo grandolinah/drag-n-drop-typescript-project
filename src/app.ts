@@ -7,15 +7,24 @@ class Project {
   constructor(public id: string, public title: string, public description: string, public people: number, public status: ProjectStatus) { }
 }
 
-type Listener = (items: Project[]) => void;
+type Listener<T> = (items: T[]) => void;
+
+class State<T> {
+  protected listeners: Listener<T>[] = [];
+
+  addListener(listenerFn: Listener<T>) {
+    this.listeners.push(listenerFn)
+  }
+}
 
 // STATE MANAGEMENT
-class ProjectState {
+class ProjectState extends State<Project> {
   private projects: Project[] = [];
-  private listeners: Listener[] = [];
   private static instance: ProjectState;
 
-  private constructor() { }
+  private constructor() {
+    super();
+  }
 
   addProject(title: string, description: string, numOfPeople: number) {
     const newProject = new Project(
@@ -31,10 +40,6 @@ class ProjectState {
     for (const listenerFn of this.listeners) {
       listenerFn(this.projects.slice());
     }
-  }
-
-  addListener(listenerFn: Listener) {
-    this.listeners.push(listenerFn);
   }
 
   static getInstance() {
@@ -95,7 +100,7 @@ const validate = (validateableInput: Validatable): boolean => {
   }
 
   if (validateableInput.min && typeof validateableInput.value === 'number') {
-    isValid = isValid && validateableInput.value > validateableInput.min;
+    isValid = isValid && validateableInput.value >= validateableInput.min;
   }
 
   return isValid;
@@ -128,6 +133,31 @@ abstract class Component<T extends HTMLElement, U extends HTMLElement> {
   private attach(insertAtStart: boolean) {
     this.hostElement.insertAdjacentElement(insertAtStart ?
       'afterbegin' : 'beforeend', this.element);
+  }
+}
+
+// PROJECT ITEM CLASS
+class ProjectItem extends Component<HTMLUListElement, HTMLLIElement> {
+  private project: Project;
+
+  get persons() {
+    return this.project.people === 1 ? `1 person` : `${this.project.people} people`
+  }
+
+  constructor(hostId: string, project: Project) {
+    super('single-project', hostId, false, project.id);
+    this.project = project;
+
+    this.configure();
+    this.renderContent();
+  }
+
+  configure() { }
+
+  renderContent() {
+    this.element.querySelector('h2')!.textContent = this.project.title;
+    this.element.querySelector('h3')!.textContent = `${this.persons} assigned`;
+    this.element.querySelector('p')!.textContent = this.project.description;
   }
 }
 
@@ -164,11 +194,7 @@ class ProjectList extends Component<HTMLDivElement, HTMLElement> {
     listEl.innerHTML = '';
 
     for (const prjItem of this.assignedProjects) {
-      const listItem = document.createElement('li');
-
-      listItem.textContent = prjItem.title;
-
-      listEl.appendChild(listItem);
+      new ProjectItem(this.element.querySelector('ul')!.id, prjItem);
     }
   }
 
